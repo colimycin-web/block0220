@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>單字挑戰</title>
+    <style>
+        body { font-family: '微軟正黑體', sans-serif; text-align: center; background-color: #f0f8ff; padding-top: 50px; }
+        .game-box { background: white; width: 80%; max-width: 500px; margin: 0 auto; padding: 30px; border-radius: 15px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        #score-board { font-size: 24px; color: #ff8c00; font-weight: bold; margin-bottom: 20px; }
+        #chinese-word { font-size: 48px; color: #333; margin-bottom: 20px; font-weight: bold; }
+        #english-input { font-size: 32px; padding: 10px; width: 80%; text-align: center; border: 2px solid #ccc; border-radius: 8px; }
+        #message { font-size: 24px; margin-top: 20px; font-weight: bold; height: 30px; }
+        button { font-size: 24px; padding: 10px 20px; margin-top: 20px; cursor: pointer; background-color: #4CAF50; color: white; border: none; border-radius: 8px; }
+    </style>
+</head>
+<body>
+
+<div class="game-box">
+    <h2>🌟 單字小達人 🌟</h2>
+    <div id="score-board">🏆 答對題數：0 題</div>
+    <div id="chinese-word">載入中...</div>
+    <input type="text" id="english-input" placeholder="請輸入英文" autocomplete="off">
+    <br>
+    <button onclick="checkAnswer()">送出答案</button>
+    <div id="message"></div>
+</div>
+
+<script>
+    // 請將下方的網址替換為您的 Google 試算表 CSV 發布網址
+    const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vR-cJ5Pu-2C62joFoe3jB-5DS5Ckz_2qTajwci3zEbZO2pJSiZ3B-phMnNFc5WPq7nr742vbTubh75x/pub?output=csv';
+    
+    let wordList = []; 
+    let currentQuestionIndex = 0; 
+    let isProcessing = false; 
+    let correctCount = 0; 
+
+    async function fetchWords() {
+        try {
+            const response = await fetch(csvUrl);
+            const csvText = await response.text();
+            const rows = csvText.split('\n'); 
+            
+            for (let i = 0; i < rows.length; i++) {
+                const columns = rows[i].split(','); 
+                if (columns.length >= 2 && columns[0].trim() !== '') {
+                    wordList.push({
+                        zh: columns[0].trim(), 
+                        en: columns[1].trim()  
+                    });
+                }
+            }
+            wordList.sort(() => Math.random() - 0.5);
+            if(wordList.length > 0) {
+                showQuestion();
+            } else {
+                document.getElementById('chinese-word').innerText = "找不到單字！請確認表格A欄和B欄有打字。";
+            }
+        } catch (error) {
+            document.getElementById('chinese-word').innerText = "連線失敗，請嘗試使用 Chrome 瀏覽器開啟。";
+            console.error("連線錯誤：", error);
+        }
+    }
+
+    function showQuestion() {
+        document.getElementById('chinese-word').innerText = wordList[currentQuestionIndex].zh;
+        document.getElementById('english-input').value = ""; 
+        document.getElementById('message').innerText = ""; 
+        document.getElementById('english-input').focus(); 
+        isProcessing = false; 
+    }
+
+    function checkAnswer() {
+        if (isProcessing) return; 
+        isProcessing = true;      
+
+        const userInput = document.getElementById('english-input').value.toLowerCase().trim();
+        const correctAnswer = wordList[currentQuestionIndex].en.toLowerCase().trim();
+        const messageDiv = document.getElementById('message');
+
+        if (userInput === correctAnswer) {
+            messageDiv.style.color = "green";
+            messageDiv.innerText = "⭕ 答對了！太棒了！";
+            correctCount++;
+            document.getElementById('score-board').innerText = `🏆 答對題數：${correctCount} 題`;
+            
+            setTimeout(() => {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < wordList.length) {
+                    showQuestion();
+                } else {
+                    document.getElementById('chinese-word').innerText = "🎉 恭喜全部過關！";
+                    document.getElementById('english-input').style.display = "none";
+                    document.querySelector('button').style.display = "none";
+                }
+            }, 1000);
+        } else {
+            messageDiv.style.color = "red";
+            messageDiv.innerText = "❌ 答錯了，再試一次！";
+            document.getElementById('english-input').value = ""; 
+            isProcessing = false; 
+        }
+    }
+
+    document.getElementById('english-input').addEventListener("keypress", function(event) {
+        if (event.key === "Enter") {
+            checkAnswer();
+        }
+    });
+
+    fetchWords();
+</script>
+</body>
+</html>
